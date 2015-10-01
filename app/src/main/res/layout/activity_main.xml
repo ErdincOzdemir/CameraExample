@@ -1,12 +1,19 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="fill_parent"
     android:layout_height="fill_parent"
-    android:orientation="horizontal" >
+    android:orientation="vertical" >
 
     <FrameLayout
         android:id="@+id/camera_preview"
-        android:layout_width="fill_parent"
-        android:layout_height="fill_parent"
-        android:layout_weight="1" />
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight=".9" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:id="@+id/llColor"
+        android:orientation="vertical"
+        android:layout_weight=".1"></LinearLayout>
 
 </LinearLayout>
