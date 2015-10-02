@@ -16,9 +16,11 @@ import android.view.MotionEvent;
 import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
+import android.widget.RelativeLayout;
 import android.widget.Toast;
 
 import java.io.File;
@@ -33,7 +35,7 @@ public class MainActivity extends Activity implements SurfaceHolder {
 
     private Camera mCamera;
     private CameraPreview mCameraPreview;
-    private LinearLayout llColor;
+    private RelativeLayout llMain;
     private int[] myPixels;
     private int frameWidth, frameHeight;
 
@@ -42,7 +44,7 @@ public class MainActivity extends Activity implements SurfaceHolder {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        llColor = (LinearLayout) findViewById(R.id.llColor);
+        llMain = (RelativeLayout) findViewById(R.id.llMain);
 
         mCamera = getCameraInstance();
         Camera.Parameters cameraParam = mCamera.getParameters();
@@ -67,7 +69,6 @@ public class MainActivity extends Activity implements SurfaceHolder {
                   int rgb[] = new int[frameWidth * frameHeight];
                   // convertion
                   myPixels = decodeYUV420SP(rgb, data, frameWidth, frameHeight);
-                  Log.i("DEVELOPER", String.format("%06X", (0xFFFFFF & myPixels[10])));
                   //llColor.setBackgroundColor(Integer.parseInt(String.format("%06X", (0xFFFFFF & myPixels[10])), 16) + 0xFF000000);
               }
           });
@@ -86,7 +87,35 @@ public class MainActivity extends Activity implements SurfaceHolder {
             public boolean onTouch(View v, MotionEvent event) {
                 Toast.makeText(MainActivity.this, String.valueOf(event.getX()) + "," + String.valueOf(event.getY()), Toast.LENGTH_SHORT).show();
                 int pixel = (Math.round(event.getY())*frameWidth) + Math.round(event.getX());
-                llColor.setBackgroundColor(Integer.parseInt(String.format("%06X", (0xFFFFFF & myPixels[pixel])), 16) + 0xFF000000);
+                final SelectedColor selectedColor = new SelectedColor(MainActivity.this);
+                selectedColor.setColor(Integer.parseInt(String.format("%06X", (0xFFFFFF & myPixels[pixel])), 16) + 0xFF000000);
+                selectedColor.setColorValue(String.format("#%06X", (0xFFFFFF & myPixels[pixel])));
+
+                selectedColor.setOnTouchListener(new SwipeDismissTouchListener(selectedColor, null, new SwipeDismissTouchListener.DismissCallbacks() {
+                    @Override
+                    public boolean canDismiss(Object token) {
+                        return true;
+                    }
+
+                    @Override
+                    public void onDismiss(View view, Object token, SwipeDismissTouchListener.SwipeDirection direction) {
+
+                        selectedColor.setVisibility(View.GONE);
+                        Log.i("DEVELOPER", direction.toString());
+                    }
+                }));
+
+                selectedColor.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        Log.i("DEVELOPER", "dasdsadas");
+                    }
+                });
+
+                RelativeLayout.LayoutParams params = new RelativeLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                params.addRule(RelativeLayout.ALIGN_PARENT_TOP);
+                llMain.addView(selectedColor, params);
+                //llColor.setBackgroundColor(Integer.parseInt(String.format("%06X", (0xFFFFFF & myPixels[pixel])), 16) + 0xFF000000);
                 return false;
             }
         });
