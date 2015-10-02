@@ -1,43 +1,28 @@
 package erdincozdemir.com.cameraexample;
 
 import android.app.Activity;
-import android.graphics.Bitmap;
-import android.graphics.Canvas;
-import android.graphics.Color;
 import android.graphics.ImageFormat;
-import android.graphics.Rect;
 import android.hardware.Camera;
-import android.os.Environment;
 import android.os.Bundle;
 import android.util.Log;
-import android.view.Menu;
-import android.view.MenuItem;
 import android.view.MotionEvent;
-import android.view.Surface;
-import android.view.SurfaceHolder;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Button;
 import android.widget.FrameLayout;
-import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
 import android.widget.Toast;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.EventListener;
+import com.github.amlcurran.showcaseview.ShowcaseView;
+import com.github.amlcurran.showcaseview.targets.ViewTarget;
 
-public class MainActivity extends Activity implements SurfaceHolder {
+public class MainActivity extends Activity {
 
     private Camera mCamera;
     private CameraPreview mCameraPreview;
     private RelativeLayout llMain;
     private int[] myPixels;
     private int frameWidth, frameHeight;
+    private FrameLayout preview;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -52,36 +37,22 @@ public class MainActivity extends Activity implements SurfaceHolder {
         mCamera.setDisplayOrientation(90);
         mCamera.setParameters(cameraParam);
         cameraParam = mCamera.getParameters();
-        try {
-            mCamera.setPreviewDisplay(this);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
         mCamera.setParameters(cameraParam);
         mCamera.startPreview();
 
         mCamera.setPreviewCallback(new Camera.PreviewCallback() {
-              @Override
-              public void onPreviewFrame(byte[] data, Camera camera) {
-                  frameHeight = camera.getParameters().getPreviewSize().height;
-                  frameWidth = camera.getParameters().getPreviewSize().width;
-                  // number of pixels//transforms NV21 pixel data into RGB pixels
-                  int rgb[] = new int[frameWidth * frameHeight];
-                  // convertion
-                  myPixels = decodeYUV420SP(rgb, data, frameWidth, frameHeight);
-                  //llColor.setBackgroundColor(Integer.parseInt(String.format("%06X", (0xFFFFFF & myPixels[10])), 16) + 0xFF000000);
-              }
-          });
+            @Override
+            public void onPreviewFrame(byte[] data, Camera camera) {
+                frameHeight = camera.getParameters().getPreviewSize().height;
+                frameWidth = camera.getParameters().getPreviewSize().width;
+                int rgb[] = new int[frameWidth * frameHeight];
+                myPixels = decodeYUV420SP(rgb, data, frameWidth, frameHeight);
+            }
+        });
 
         mCameraPreview = new CameraPreview(this, mCamera);
-        FrameLayout preview = (FrameLayout) findViewById(R.id.camera_preview);
+        preview = (FrameLayout) findViewById(R.id.camera_preview);
         preview.addView(mCameraPreview);
-
-        /*mCameraPreview = new CameraPreview(this, mCamera);
-        FrameLayout preview = (FrameLayout) findViewById(R.id.camera_preview);
-        preview.addView(mCameraPreview);
-
-        mCamera.setDisplayOrientation(90);*/
         mCameraPreview.setOnTouchListener(new View.OnTouchListener() {
             @Override
             public boolean onTouch(View v, MotionEvent event) {
@@ -115,25 +86,17 @@ public class MainActivity extends Activity implements SurfaceHolder {
                 RelativeLayout.LayoutParams params = new RelativeLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
                 params.addRule(RelativeLayout.ALIGN_PARENT_TOP);
                 llMain.addView(selectedColor, params);
-                //llColor.setBackgroundColor(Integer.parseInt(String.format("%06X", (0xFFFFFF & myPixels[pixel])), 16) + 0xFF000000);
                 return false;
             }
         });
-    }
 
-    /*private void getColor(Camera camera, int x, int y) {
-        int frameHeight = camera.getParameters().getPreviewSize().height;
-        int frameWidth = camera.getParameters().getPreviewSize().width;
-        int rgb[] = new int[frameWidth * frameHeight];
-        decodeYUV420SP(rgb, data, frameWidth, frameHeight);
-        Bitmap bmp = Bitmap.createBitmap(rgb, frameWidth, frameHeight, Bitmap.Config.ARGB_8888);
-        int pixel = bmp.getPixel( x,y );
-        int redValue = Color.red(pixel);
-        int blueValue = Color.blue(pixel);
-        int greenValue = Color.green(pixel);
-        int thiscolor = Color.rgb(redValue, greenValue, blueValue);
-        Toast.makeText(MainActivity.this, String.valueOf(thiscolor), Toast.LENGTH_SHORT).show();
-    }*/
+        new ShowcaseView.Builder(this)
+                .setTarget(new ViewTarget(R.id.llMain, this))
+                .setContentTitle("ShowcaseView")
+                .setContentText("This is highlighting the Home button")
+                .hideOnTouchOutside()
+                .build();
+    }
 
     public int[] decodeYUV420SP(int[] rgb, byte[] yuv420sp, int width, int height) {
 
@@ -194,120 +157,24 @@ public class MainActivity extends Activity implements SurfaceHolder {
         return camera;
     }
 
-    Camera.PictureCallback mPicture = new Camera.PictureCallback() {
-        @Override
-        public void onPictureTaken(byte[] data, Camera camera) {
-            File pictureFile = getOutputMediaFile();
-            if (pictureFile == null) {
-                return;
-            }
-            try {
-                FileOutputStream fos = new FileOutputStream(pictureFile);
-                fos.write(data);
-                fos.close();
-            } catch (FileNotFoundException e) {
+    @Override
+    protected void onStop() {
+        super.onStop();
+        releaseCamera();
+    }
 
-            } catch (IOException e) {
-            }
+    @Override
+    protected void onPause() {
+        super.onPause();
+        releaseCamera();
+    }
+
+    private void releaseCamera() {
+        if (mCamera != null) {
+            mCamera.stopPreview();
+            mCamera.setPreviewCallback(null);
+            mCamera.release();
+            mCamera = null;
         }
-    };
-
-    private static File getOutputMediaFile() {
-        File mediaStorageDir = new File(
-                Environment
-                        .getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES),
-                "MyCameraApp");
-        if (!mediaStorageDir.exists()) {
-            if (!mediaStorageDir.mkdirs()) {
-                Log.d("MyCameraApp", "failed to create directory");
-                return null;
-            }
-        }
-        // Create a media file name
-        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss")
-                .format(new Date());
-        File mediaFile;
-        mediaFile = new File(mediaStorageDir.getPath() + File.separator
-                + "IMG_" + timeStamp + ".jpg");
-
-        return mediaFile;
     }
-
-    @Override
-    public void addCallback(Callback callback) {
-
-    }
-
-    @Override
-    public void removeCallback(Callback callback) {
-
-    }
-
-    @Override
-    public boolean isCreating() {
-        return false;
-    }
-
-    @Override
-    public void setType(int type) {
-
-    }
-
-    @Override
-    public void setFixedSize(int width, int height) {
-
-    }
-
-    @Override
-    public void setSizeFromLayout() {
-
-    }
-
-    @Override
-    public void setFormat(int format) {
-
-    }
-
-    @Override
-    public void setKeepScreenOn(boolean screenOn) {
-
-    }
-
-    @Override
-    public Canvas lockCanvas() {
-        return null;
-    }
-
-    @Override
-    public Canvas lockCanvas(Rect dirty) {
-        return null;
-    }
-
-    @Override
-    public void unlockCanvasAndPost(Canvas canvas) {
-
-    }
-
-    @Override
-    public Rect getSurfaceFrame() {
-        return null;
-    }
-
-    @Override
-    public Surface getSurface() {
-        return null;
-    }
-
-    /*private void  test(Camera camera) {
-        int frameHeight = camera.getParameters().getPreviewSize().height;
-        int frameWidth = camera.getParameters().getPreviewSize().width;
-        int rgb[] = new int[frameWidth * frameHeight];
-        decodeYUV420SP(rgb, data, frameWidth, frameHeight);
-        Bitmap bmp = Bitmap.createBitmap(rgb, frameWidth, frameHeight, Bitmap.Config.ARGB_8888);
-        int pixel = bmp.getPixel( x,y );
-        int redValue = Color.red(pixel);
-        int blueValue = Color.blue(pixel);
-        int greenValue = Color.green(pixel);
-        int thiscolor = Color.rgb(redValue, greenValue, blueValue);
-    }*/
 }
